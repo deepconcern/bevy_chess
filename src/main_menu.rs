@@ -1,16 +1,53 @@
 use bevy::prelude::*;
 
+use crate::app_state::AppState;
+
 #[derive(Clone, Component, Debug)]
-pub struct MenuNode;
+struct MenuNode;
 
 #[derive(Clone, Component, Debug)]
 struct NewGameButton;
 
-pub fn cleanup_main_menu(mut commands: Commands, entity_query: Query<Entity, With<MenuNode>>) {
+fn button_animation(
+    mut button_query: Query<
+        (&mut Interaction, &mut TextureAtlas),
+        (Changed<Interaction>, With<Button>),
+    >,
+) {
+    for (interaction, mut texture_atlas) in button_query.iter_mut() {
+        match *interaction {
+            Interaction::Hovered => {
+                texture_atlas.index = 2;
+            }
+            Interaction::None => {
+                texture_atlas.index = 0;
+            }
+            Interaction::Pressed => {
+                texture_atlas.index = 1;
+            }
+        }
+    }
+}
+
+fn new_game_clicked(
+    mut next_app_state: ResMut<NextState<AppState>>,
+    new_game_button_query: Query<&Interaction, (Changed<Interaction>, With<NewGameButton>)>,
+) {
+    for interaction in new_game_button_query.iter() {
+        match *interaction {
+            Interaction::Pressed => {
+                next_app_state.set(AppState::Game);
+            }
+            _ => (),
+        }
+    }
+}
+
+fn cleanup_main_menu(mut commands: Commands, entity_query: Query<Entity, With<MenuNode>>) {
     commands.entity(entity_query.single()).despawn_recursive();
 }
 
-pub fn setup_main_menu(
+fn setup_main_menu(
     asset_server: Res<AssetServer>,
     mut commands: Commands,
     mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
@@ -107,4 +144,14 @@ pub fn setup_main_menu(
                     // TODO Credits
                 });
         });
+}
+
+pub struct MainMenuPlugin;
+
+impl Plugin for MainMenuPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(AppState::MainMenu), setup_main_menu);
+        app.add_systems(OnExit(AppState::MainMenu), cleanup_main_menu);
+        app.add_systems(Update, (button_animation, new_game_clicked));
+    }
 }
